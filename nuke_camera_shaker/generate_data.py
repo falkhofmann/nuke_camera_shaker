@@ -3,7 +3,7 @@ import os
 
 
 def get_output_dir():
-    return '/home/falcon/development/dummy_data/shakebox/floating'
+    return '../data'
 
 
 def create_shake(count):
@@ -18,7 +18,11 @@ def create_shake(count):
     doc = open(filepath, 'w')
     doc.write(content)
 
+
 def generate():
     for each in range(1, 110):
         create_shake(each)
-#generate()
+
+
+if __name__ == '__main__':
+    generate()
