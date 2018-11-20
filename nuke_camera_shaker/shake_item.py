@@ -1,4 +1,4 @@
-from Qt import QtWidgets
+from PySide2 import QtWidgets
 
 
 class ShakeItem(QtWidgets.QTreeWidgetItem):

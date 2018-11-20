@@ -1,14 +1,13 @@
 import sys
 
 
-from Qt import QtCore
-from Qt import QtGui
-from Qt import QtWidgets
+from PySide2 import QtCore
+from PySide2 import QtWidgets
 
 from nuke_camera_shaker.basic_button import BasicButton
 from nuke_camera_shaker.opengl_widget import OGLWidget
 from nuke_camera_shaker.shake_item import ShakeItem
-import nuke_camera_shaker.utils as utils
+import nuke_camera_shaker.nuke_utils as utils
 
 
 class ShakeBox(QtWidgets.QWidget):
