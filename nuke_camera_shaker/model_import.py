@@ -1,7 +1,12 @@
-import nuke
 
+# Import third party modules
+try:
+    import nuke
+except:
+    pass
+
+# Import local modules
 from nuke_camera_shaker import utils
-
 
 
 def read_data_from_node(node):
@@ -20,10 +25,17 @@ def export_shake_from_node():
         return shake_file
 
 
-def create_transform(shake_data, multiply, fps, shake, start_frame=1):
+def create_transform(shake_data, multiply, fps, shake, start_frame=1001):
     transform = nuke.nodes.Transform()
-    transform['label'].setValue('camera shake\n{}\n{}'.format(shake.cat, shake.name))
-    tab = nuke.Tab_Knob('camshake', 'camera shake options')
+    root_format = nuke.toNode('root')['format'].value()
+
+    transform['center'].setValue((root_format.width()/2,
+                                  root_format.height()/2))
+
+    transform['label'].setValue('Imported shake\n{}\n{}'.format(shake.category,
+                                                              shake.name))
+
+    tab = nuke.Tab_Knob('camshake', 'camera shake')
 
     usr_speed = 1.0/(25.0/float(fps))
     speed = nuke.Double_Knob('speed')
@@ -59,11 +71,3 @@ def create_transform(shake_data, multiply, fps, shake, start_frame=1):
     anim_x.addKey([nuke.AnimationKey(frame, value) for (frame, value) in keys_x])
     anim_y.addKey([nuke.AnimationKey(frame, value) for (frame, value) in keys_y])
     translate.setExpression('curve(x*speed-(speed*first_frame)-offset)*multiply')
-
-
-def is_number(usr_input):
-    try:
-        float(usr_input)
-        return True
-    except ValueError:
-        return False

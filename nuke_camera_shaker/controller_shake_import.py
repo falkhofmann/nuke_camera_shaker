@@ -1,9 +1,12 @@
 
 # Import local modules
-from nuke_camera_shaker import view_camera_shake
+from nuke_camera_shaker import view_shake_import
+from nuke_camera_shaker import model_import
 from nuke_camera_shaker import utils
 
-reload(view_camera_shake)
+reload(view_shake_import)
+reload(model_import)
+reload(utils)
 
 
 class Controller:
@@ -15,17 +18,18 @@ class Controller:
     def set_up_signals(self):
         self.view.import_shake.connect(lambda details: self.import_shake(details))
 
-    def import_shake(self, details):
-        print details
+    @staticmethod
+    def import_shake(details):
+        model_import.create_transform(*details)
 
 
 def start():
     """Start up function."""
 
-    shakes = utils.get_shakes_files()
+    shakes = utils.get_reformatted_shakes()
 
-    global VIEW
-    VIEW = view_camera_shake.CameraShake(shakes=shakes)
+    global VIEW  # pylint: disable=global-statement
+    VIEW = view_shake_import.CameraShake(shakes=shakes)
     VIEW.raise_()
     VIEW.show()
 
@@ -41,7 +45,7 @@ def start_from_main():
     app = QtWidgets.QApplication(sys.argv)
 
     global VIEW  # pylint: disable=global-statement
-    VIEW = view_camera_shake.CameraShake(shakes=shakes)
+    VIEW = view_shake_import.CameraShake(shakes=shakes)
     VIEW.raise_()
     VIEW.show()
 
