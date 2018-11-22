@@ -1,3 +1,5 @@
+
+# Import third party modules
 from PySide2 import QtWidgets
 
 

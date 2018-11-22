@@ -1,4 +1,7 @@
 
+# Import third party modules
+import nuke
+
 # Import local modules
 from nuke_camera_shaker import view_shake_export
 from nuke_camera_shaker import model_export
@@ -7,11 +10,13 @@ from nuke_camera_shaker import utils
 
 reload(view_shake_export)
 reload(model_export)
+reload(utils)
 
 
 class Controller:
 
     def __init__(self, view):
+
         self.view = view
         self.set_up_signals()
 
@@ -23,21 +28,25 @@ class Controller:
         updated_file_path = utils.combine_path_and_extension(file_path)
         self.view.update_field(updated_file_path)
 
-    def export_file(self, details):
-        model_export.export_animation_as_retime(*details)
-        self.view.close()
-
-
-
     def export_shake(self, details):
-        print details
+        model_export.export_animation_as_retime(self.view.node, *details)
 
 
 def start():
     """Start up function."""
 
+    nodes = nuke.selectedNodes()
+
+    if not nuke.selectedNodes():
+        model_export.message('Please select a Transform to start export.')
+        return
+
+    if not model_export.validate_node(nodes[-1]):
+        model_export.message("Please use a Transform as shake to export.")
+        return
+
     global VIEW
-    VIEW = view_shake_export.ViewExport()
+    VIEW = view_shake_export.ViewExport(nodes[-1])
     VIEW.raise_()
     VIEW.show()
 

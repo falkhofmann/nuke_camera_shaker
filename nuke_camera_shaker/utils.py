@@ -1,10 +1,12 @@
+
+# Import built-in modules
 from collections import namedtuple
 from collections import OrderedDict
 from collections import defaultdict
-
 import os
 import re
 
+# Import local modules
 from nuke_camera_shaker.constants import FILE_EXTENSION
 
 
@@ -20,7 +22,7 @@ def set_style_sheet(widget):
 
 def get_directory():
 
-    return os.path.join(os.path.normpath(os.path.dirname(__file__)), '..', 'data')
+    return os.path.join(os.path.normpath(os.path.dirname(__file__)), '..', 'shake_data')
 
 
 def get_reformatted_shakes():
@@ -65,4 +67,20 @@ def _reorder_shakes(shakes):
 def read_data_from_file(path):
     with open(path) as f:
         content = f.read().splitlines()
-    return tuple(tuple((float(y) for y in x.split(' '))) for x in content)
+    return tuple(tuple((float(y) for y in x.split(','))) for x in content)
+
+
+def combine_path_and_extension(file_path):
+
+    dir_path = os.path.dirname(file_path)
+    base_name = os.path.basename(file_path)
+
+    if base_name.endswith(FILE_EXTENSION):
+        return file_path
+
+    elif base_name.endswith('.'):
+        return os.path.join(dir_path, '{}{}'.format(base_name, FILE_EXTENSION))
+
+    else:
+        return os.path.join(dir_path, '{}.{}'.format(base_name,
+                                                     FILE_EXTENSION))

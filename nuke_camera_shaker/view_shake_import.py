@@ -201,6 +201,7 @@ class CameraShake(QtWidgets.QWidget):
         left_layout.addLayout(start_layout)
 
         button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addSpacerItem(QtWidgets.QSpacerItem(500, 50))
         button_layout.addWidget(self.cancel_button)
         button_layout.addWidget(self.import_button)
 

@@ -1,5 +1,8 @@
+
+# Import third party modules
 from PySide2 import QtWidgets, QtCore
 
+# Import local modules
 from nuke_camera_shaker.constants import FILE_EXTENSION
 
 
@@ -32,8 +35,9 @@ class ViewExport(QtWidgets.QWidget):
     save_file = QtCore.Signal(str)
     export = QtCore.Signal(object)
 
-    def __init__(self):
+    def __init__(self, node):
         super(ViewExport, self).__init__()
+        self.node = node
         self._build_widgets()
         self._build_layouts()
         self._set_window_properties()
@@ -124,12 +128,11 @@ class ViewExport(QtWidgets.QWidget):
     def export_retime_file(self):
 
         self.export.emit((self.file_path.text(),
-                          self.node_name_line.text(),
-                          self.knob.currentText(),
                           self.radio_range.isChecked(),
                           int(self.first.spin.text()),
                           int(self.last.spin.text())
                           ))
+        self.close()
 
     def keyPressEvent(self, event):  # pylint: disable=invalid-name
         """Catch user key events.
