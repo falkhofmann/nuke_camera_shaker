@@ -1,124 +1,86 @@
-from collections import namedtuple
-import os
 
-try:
-    import nuke
-except:
-    pass
+# Import built-in modules
+from collections import namedtuple
+from collections import OrderedDict
+from collections import defaultdict
+import os
+import re
+
+# Import local modules
+from nuke_camera_shaker.constants import FILE_EXTENSION
+
+
+def set_style_sheet(widget):
+
+    styles_file = os.path.normpath(os.path.join(os.path.dirname(__file__),
+                                                "stylesheet.css"))
+
+    with open(styles_file, "r") as file_:
+        style = file_.read()
+        widget.setStyleSheet(style)
 
 
 def get_directory():
-    return '../data'
+
+    return os.path.join(os.path.normpath(os.path.dirname(__file__)), '..', 'shake_data')
 
 
-def get_shakes_files():
+def get_reformatted_shakes():
     directory = get_directory()
-    shake_dict = {}
+    shake_dict = OrderedDict()
 
     shake = namedtuple('shake', 'name path category data')
 
-    for root, subdirs, filenames in os.walk(directory):
-        for category in subdirs:
+    for root, categories, filenames in os.walk(directory):
+        for category in categories:
             shake_files = []
             folder_fpn = os.path.join(directory, category)
 
-            if os.path.isdir(folder_fpn):
-                files = os.listdir(folder_fpn)
+            if not os.path.isdir(folder_fpn):
+                return
+            files = os.listdir(folder_fpn)
+            ordered_files = _reorder_shakes(files)
+            for shake_file in ordered_files:
+                name = os.path.splitext(shake_file)[0]
+                path = os.path.join(folder_fpn, shake_file)
+                data = read_data_from_file(path)
+                shake_files.append(shake(name, path, category, data))
 
-                for shake_file in files:
-                    name = os.path.splitext(shake_file)[0]
-                    path = os.path.join(folder_fpn, shake_file)
-                    data = read_data_from_file(path)
-                    shake_files.append(shake(name, path, category, data))
+            shake_dict[category] = sorted(shake_files, key=lambda s: int(s.name.partition('_')[0].split('mm')[0]))
 
-            shake_files.sort()
-            shake_dict[category] = shake_files
     return shake_dict
+
+
+def _reorder_shakes(shakes):
+    regex = r'(?P<focal>[\d]+)mm_(?P<distance>[\d.]+)m_(?P<counter>[A-Z]).{}'.format(FILE_EXTENSION)
+    ordered = []
+    temp = defaultdict(list)
+    for shake in shakes:
+        match = re.match(regex, shake).groupdict()
+        temp[match['focal']].append(shake)
+
+    for focal, shake in sorted(temp.items(), key=lambda s: int(s[0])):
+        ordered += sorted(shake)
+    return ordered
 
 
 def read_data_from_file(path):
     with open(path) as f:
         content = f.read().splitlines()
-    return tuple(tuple((float(y) for y in x.split(' '))) for x in content)
+    return tuple(tuple((float(y) for y in x.split(','))) for x in content)
 
 
-def read_data_from_node(node):
-    keys_x = [key.y for key in node['translate'].animations()[0].keys()]
-    keys_y = [key.y for key in node['translate'].animations()[1].keys()]
-    export_string = ''.join([str(a) + ' ' + str(b) + '\n' for a, b in zip(keys_x, keys_y)])
-    return export_string
+def combine_path_and_extension(file_path):
 
+    dir_path = os.path.dirname(file_path)
+    base_name = os.path.basename(file_path)
 
-def get_new_filepath():
-    shake_dir = get_directory()
-    shake_files = get_shakes_files()
+    if base_name.endswith(FILE_EXTENSION):
+        return file_path
 
-    last_file = shake_files[-1].name
-    new = int(last_file) + 1
-    new_file = os.path.join(shake_dir, (str(new).zfill(4))+ '.txt')
-    return new_file
+    elif base_name.endswith('.'):
+        return os.path.join(dir_path, '{}{}'.format(base_name, FILE_EXTENSION))
 
-
-def export_shake_from_node():
-
-    node = nuke.selectedNode()
-    if node.Class() == "Transform":
-        data = read_data_from_node(node)
-        shake_file = write_shake_file(data)
-        return shake_file
-
-
-def write_shake_file(data):
-    filepath = get_new_filepath()
-    doc = open(filepath, 'w')
-    doc.write(data)
-    return doc
-
-
-def create_transform(shake_data, multiply, fps, shake, start_frame=1):
-    transform = nuke.nodes.Transform()
-    transform['label'].setValue('camera shake\n{}\n{}'.format(shake.cat, shake.name))
-    tab = nuke.Tab_Knob('camshake', 'camera shake options')
-
-    usr_speed = 1.0/(25.0/float(fps))
-    speed = nuke.Double_Knob('speed')
-    speed.setRange(0, 3)
-    speed.setValue(usr_speed)
-
-    mult = nuke.Double_Knob('multiply')
-    mult.setRange(0, 10)
-    mult.setValue(multiply)
-
-    offset = nuke.Double_Knob('offset', 'timeoffset')
-    offset.setRange(-200, 200)
-    offset.setValue(0)
-
-    transform.addKnob(tab)
-    transform.addKnob(speed)
-    transform.addKnob(mult)
-    transform.addKnob(offset)
-
-    translate = transform['translate']
-    translate.setAnimated()
-
-    frame = start_frame
-    keys_x, keys_y = [], []
-
-    for each in shake_data:
-        keys_x.append((frame, each[0]))
-        keys_y.append((frame, each[1]))
-        frame += 1
-
-    anim_x = translate.animations()[0]
-    anim_y = translate.animations()[1]
-    anim_x.addKey([nuke.AnimationKey(frame, value) for (frame, value) in keys_x])
-    anim_y.addKey([nuke.AnimationKey(frame, value) for (frame, value) in keys_y])
-    translate.setExpression('curve(x*speed-(speed*first_frame)-offset)*multiply')
-
-
-def is_number(usr_input):
-    try:
-        float(usr_input)
-        return True
-    except ValueError:
-        return False
+    else:
+        return os.path.join(dir_path, '{}.{}'.format(base_name,
+                                                     FILE_EXTENSION))

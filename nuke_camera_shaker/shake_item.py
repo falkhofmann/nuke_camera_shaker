@@ -1,14 +1,15 @@
-from Qt import QtWidgets
+
+# Import third party modules
+from PySide2 import QtWidgets
 
 
 class ShakeItem(QtWidgets.QTreeWidgetItem):
-    def __init__(self, cat, shake_tuple):
+    def __init__(self, cat, shake):
 
         super(ShakeItem, self).__init__()
         self.parentitem = cat
-        self.cat = cat
-        self.name = shake_tuple.name
-        self.path = shake_tuple.path
-        self.cat = shake_tuple.category
+        self.name = shake.name
+        self.path = shake.path
+        self.category = shake.category
         self.setText(0, self.name)
         self.parentitem.addChild(self)

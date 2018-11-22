@@ -8,3 +8,4 @@ STYLES = {'green': "background-color: #1EB028; font: 13px",
           'disable': "background-color: #1a1a1a",
           'big_font': 'color: #C26828; font: 15px'}
 
+FILE_EXTENSION = 'shake'
