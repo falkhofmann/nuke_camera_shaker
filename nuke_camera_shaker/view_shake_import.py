@@ -67,12 +67,20 @@ class SliderGroup(QtWidgets.QWidget):
         return self._value
 
 
+class HorizontalLine(QtWidgets.QFrame):
+    def __init__(self):
+        super(HorizontalLine, self).__init__()
+        self.setFrameShape(QtWidgets.QFrame.HLine)
+        self.setFrameShadow(QtWidgets.QFrame.Sunken)
+
+
 class Draw(QtWidgets.QWidget):
 
-    def __init__(self, hue=1.0, width=2, fps=25):
+    def __init__(self, hue=1.0, pen_width=2, grid_size=10, fps=25):
         super(Draw, self).__init__()
         self.fps = fps
-        self.pen_width = width
+        self.pen_width = pen_width
+        self.grid_size = grid_size
         self.hue = hue
 
         self.multiply = 1
@@ -104,32 +112,43 @@ class Draw(QtWidgets.QWidget):
         self.repaint()
 
     def paintEvent(self, e):
+
+        size = int(self.grid_size)
+
         painter = QtGui.QPainter()
         self.pen = QtGui.QPen()
         self.pen.setWidth(self.pen_width)
+
         self.pen.setColor(QtGui.QColor.fromHsvF(self.hue, 0.5, 0.75))
         painter.begin(self)
         painter.setPen(self.pen)
-        self.draw_lines(painter)
+        self.draw_lines(painter, size)
         painter.end()
 
-    def draw_lines(self, qp):
+    def draw_lines(self, painter, size):
 
         if self.data:
             offset_x, offset_y = self.data[self.index]
 
-            space_x = int(self.width()/LINE_WIDTH)
-            space_y = int(self.height()/LINE_WIDTH)
+            try:
+                space_x = int(self.width()/size)
+            except ZeroDivisionError:
+                space_x = 1
 
-            for x in range(1, LINE_WIDTH):
+            try:
+                space_y = int(self.height()/size)
+            except ZeroDivisionError:
+                space_y = 1
+
+            for x in range(1, size):
                 start_x = QtCore.QPointF(x * space_x + (offset_x * self.multiply), 0)
                 end_x = QtCore.QPointF(x * space_x + (offset_x * self.multiply), self.height())
-                qp.drawLine(start_x, end_x)
+                painter.drawLine(start_x, end_x)
 
-            for y in range(1, LINE_WIDTH):
+            for y in range(1, size):
                 start_y = QtCore.QPointF(0, y * space_y + offset_y * self.multiply)
                 end_y = QtCore.QPointF(self.width(), y * space_y + offset_y * self.multiply)
-                qp.drawLine(start_y, end_y)
+                painter.drawLine(start_y, end_y)
 
             if self.index < len(self.data)-1:
                 self.index += 1
@@ -166,6 +185,7 @@ class CameraShake(QtWidgets.QWidget):
         self.multiply = SliderGroup('Multiply', 10)
         self.line_width = SliderGroup('Line width', 10)
         self.color = SliderGroup('Color', 0)
+        self.grid_size = SliderGroup('Grid size', 50)
 
         self.fps_label = QtWidgets.QLabel('FPS: ')
         self.fps_input = QtWidgets.QSpinBox()
@@ -194,11 +214,14 @@ class CameraShake(QtWidgets.QWidget):
         left_layout = QtWidgets.QVBoxLayout()
         left_layout.addWidget(self.shake_tree)
         left_layout.addWidget(self.multiply)
-        left_layout.addWidget(self.line_width)
-        left_layout.addWidget(self.color)
-
         left_layout.addLayout(fps_layout)
         left_layout.addLayout(start_layout)
+
+        left_layout.addWidget(HorizontalLine())
+
+        left_layout.addWidget(self.grid_size)
+        left_layout.addWidget(self.line_width)
+        left_layout.addWidget(self.color)
 
         button_layout = QtWidgets.QHBoxLayout()
         button_layout.addSpacerItem(QtWidgets.QSpacerItem(500, 50))
@@ -221,6 +244,7 @@ class CameraShake(QtWidgets.QWidget):
         self.multiply.value_changed.connect(self._update_multiply)
         self.line_width.value_changed.connect(self._update_line_width)
         self.color.value_changed.connect(self._update_line_color)
+        self.grid_size.value_changed.connect(self._update_grid_size)
 
         self.cancel_button.clicked.connect(self.close)
         self.import_button.clicked.connect(self.start_import)
@@ -247,6 +271,12 @@ class CameraShake(QtWidgets.QWidget):
 
     def _update_line_color(self, value):
         self.draw_widget.hue = value/100.0
+
+    def _update_grid_size(self, value):
+        try:
+            self.draw_widget.grid_size = value/5
+        except ZeroDivisionError:
+            self.draw_widget.grid_size = 1
 
     def _setup_tree(self):
         self.shake_tree.setHeaderItem(QtWidgets.QTreeWidgetItem(["shakes"]))
