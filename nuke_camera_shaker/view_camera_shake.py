@@ -1,8 +1,6 @@
 from PySide2 import QtCore
 from PySide2 import QtGui
-from PySide2 import QtOpenGL
 from PySide2 import QtWidgets
-
 
 from nuke_camera_shaker.constants import LINE_WIDTH
 from nuke_camera_shaker import utils
@@ -20,21 +18,70 @@ class BasicButton(QtWidgets.QPushButton):
         utils.set_style_sheet(self)
 
 
-class OGLWidget(QtOpenGL.QGLWidget):
+class SliderGroup(QtWidgets.QWidget):
+
+    value_changed = QtCore.Signal(object)
+
+    def __init__(self, label, value=10):
+        super(SliderGroup, self).__init__()
+        self._value = value
+        self._build_widgets(label, value)
+        self._build_layouts()
+        self._set_up_signals()
+
+    def _set_up_signals(self):
+        self.slider.valueChanged.connect(self._update_label)
+
+    def _build_widgets(self, label, value):
+        self.label = QtWidgets.QLabel('{}: '.format(label))
+        self.label_value = QtWidgets.QLabel(str(value/10.0))
+
+        self.slider = QtWidgets.QSlider()
+        self.slider.setOrientation(QtCore.Qt.Horizontal)
+        self.slider.setRange(0, 100)
+        self.slider.setValue(value)
+        self.slider.setTickInterval(10)
+        self.slider.setSingleStep(10)
+
+    def _build_layouts(self):
+        layout = QtWidgets.QVBoxLayout()
+        label_layout = QtWidgets.QHBoxLayout()
+        label_layout.addWidget(self.label)
+        label_layout.addWidget(self.label_value)
+
+        layout.addLayout(label_layout)
+        layout.addWidget(self.slider)
+
+        self.setLayout(layout)
+
+    def _update_label(self, value):
+        self.label_value.setText(str(value/10.0))
+        self.value_changed.emit(value)
+
+    @property
+    def value(self):
+        return self._value
+
+
+class Draw(QtWidgets.QWidget):
 
     def __init__(self, fps=25):
-        super(OGLWidget, self).__init__()
+        super(Draw, self).__init__()
         self.fps = fps
 
         self.toggle = True
         self.elapsed = 0
-        self.set_window_properties()
 
         self.multiply = 1
         self.data = None
         self.c_idx = 0
 
         self.timer = QtCore.QTimer(self)
+
+        self.set_window_properties()
+        self.set_up_signal()
+
+        self.start_timer()
 
     def set_window_properties(self):
         self.setMinimumSize(700, 400)
@@ -86,49 +133,42 @@ class OGLWidget(QtOpenGL.QGLWidget):
 
 
 class CameraShake(QtWidgets.QWidget):
-
     import_shake = QtCore.Signal(object)
 
     def __init__(self, shakes=[]):
         super(CameraShake, self).__init__()
         self.shakes = shakes
 
-        self.build_widgets()
-        self.build_layouts()
-        self.set_window_properties()
-        self.set_up_signals()
+        self.fps = None
+        self.current_shake = None
+        self.current_data = None
+
+        self._build_widgets()
+        self._build_layouts()
+        self._set_window_properties()
+        self._set_up_signals()
 
         self._setup_tree()
 
-    def set_window_properties(self):
+    def _set_window_properties(self):
         self.setMinimumSize(1000, 500)
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
-    def build_widgets(self):
+    def _build_widgets(self):
         self.shake_tree = QtWidgets.QTreeWidget()
 
-        self.multiply_label = QtWidgets.QLabel('Mutiply: ')
-        self.multiply_label_value = QtWidgets.QLabel('1.0')
-
-        self.multiply = QtWidgets.QSlider()
-        self.multiply.setOrientation(QtCore.Qt.Horizontal)
-        self.multiply.setRange(0, 100)
-        self.multiply.setValue(50)
-        self.multiply.setTickInterval(10)
-        self.multiply.setSingleStep(10)
+        self.multiply = SliderGroup('Multiply', 10)
 
         self.fps_label = QtWidgets.QLabel('FPS: ')
         self.fps_input = QtWidgets.QLineEdit('25')
+        self.fps_input.setValidator(QtGui.QIntValidator(0, 200))
 
-        self.ogl_widget = OGLWidget()
+        self.draw_widget = Draw()
 
         self.cancel_button = BasicButton('cancel')
         self.import_button = BasicButton('import')
 
-    def build_layouts(self):
-        multiply_layout = QtWidgets.QHBoxLayout()
-        multiply_layout.addWidget(self.multiply_label)
-        multiply_layout.addWidget(self.multiply_label_value)
+    def _build_layouts(self):
 
         fps_layout = QtWidgets.QHBoxLayout()
         fps_layout.addWidget(self.fps_label)
@@ -136,7 +176,7 @@ class CameraShake(QtWidgets.QWidget):
 
         left_layout = QtWidgets.QVBoxLayout()
         left_layout.addWidget(self.shake_tree)
-        left_layout.addLayout(multiply_layout)
+        left_layout.addWidget(self.multiply)
         left_layout.addWidget(self.multiply)
         left_layout.addLayout(fps_layout)
 
@@ -149,30 +189,41 @@ class CameraShake(QtWidgets.QWidget):
         grid.setColumnStretch(1, 4)
 
         grid.addLayout(left_layout, 0, 0)
-        grid.addWidget(self.ogl_widget, 0, 1)
+        grid.addWidget(self.draw_widget, 0, 1)
         grid.addLayout(button_layout, 1, 1)
 
         self.setLayout(grid)
 
-    def set_up_signals(self):
-        self.multiply.valueChanged.connect(self.slider_moved)
-        # self.fps_input.textChanged.connect(self.update_fps)
+    def _set_up_signals(self):
+        self.shake_tree.itemSelectionChanged.connect(self._update_draw_widget)
+        self.fps_input.textChanged.connect(self._update_fps)
+        self.multiply.value_changed.connect(self._update_multiply)
+
         self.cancel_button.clicked.connect(self.close)
         self.import_button.clicked.connect(self.start_import)
 
-    def slider_moved(self, value):
-        multiply = value/10.0
-        self.multiply_label_value.setText(str(multiply))
-        self.ogl_widget.multiply = multiply
+    def _update_draw_widget(self):
+        self.current_shake = self.shake_tree.currentItem()
+        self.current_data = utils.read_data_from_file(self.current_shake.path)
+        self.draw_widget.data = self.current_data
+        self.draw_widget.start_timer()
 
     def start_import(self):
 
-        self.import_shake.emit((self.cur_data,
+        self.import_shake.emit((self.current_data,
                                 self.multiply,
                                 self.fps,
-                                self.cur_shake))
+                                self.current_shake))
 
         self.close()
+
+    def _update_fps(self, item):
+        self.draw_widget.fps = 1000.0/float(int(item))
+        self.fps = item
+        self.draw_widget.start_timer()
+
+    def _update_multiply(self, value):
+        self.draw_widget.multiply = value/10.0
 
     def keyPressEvent(self, event):  # pylint: disable=invalid-name
         """Catch user key events.
@@ -187,9 +238,7 @@ class CameraShake(QtWidgets.QWidget):
     def _setup_tree(self):
         self.shake_tree.setHeaderItem(QtWidgets.QTreeWidgetItem(["shakes"]))
         self.shake_tree.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        print self.shakes
         for shake_type in self.shakes:
-            print shake_type
             cat = QtWidgets.QTreeWidgetItem(self.shake_tree, [shake_type])
             for shake in self.shakes[shake_type]:
                 ShakeItem(cat, shake)

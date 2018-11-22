@@ -37,8 +37,7 @@ def start_from_main():
     import sys
     from PySide2 import QtWidgets
 
-    shakes = utils.get_shakes_files()
-    print shakes
+    shakes = utils.get_reformatted_shakes()
     app = QtWidgets.QApplication(sys.argv)
 
     global VIEW  # pylint: disable=global-statement
