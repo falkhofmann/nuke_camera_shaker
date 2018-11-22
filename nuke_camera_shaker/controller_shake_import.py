@@ -1,11 +1,11 @@
 
 # Import local modules
 from nuke_camera_shaker import view_shake_import
-# from nuke_camera_shaker import model_import
+from nuke_camera_shaker import model_import
 from nuke_camera_shaker import utils
 
 reload(view_shake_import)
-# reload(model_import)
+reload(model_import)
 reload(utils)
 
 
@@ -20,8 +20,7 @@ class Controller:
 
     @staticmethod
     def import_shake(details):
-        pass
-        # model_import.create_transform(*details)
+        model_import.create_transform(*details)
 
 
 def start():
